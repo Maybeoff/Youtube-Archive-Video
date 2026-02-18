@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Parser</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; margin-bottom: 30px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+        button { background: #007bff; color: white; padding: 12px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #0056b3; }
+        .videos { margin-top: 40px; }
+        .video-item { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 5px; }
+        .video-item.expanded { display: block; }
+        .video-header { display: flex; gap: 15px; margin-bottom: 15px; }
+        .video-item img { width: 200px; height: 112px; object-fit: cover; border-radius: 5px; cursor: pointer; }
+        .video-info { flex: 1; }
+        .video-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #333; }
+        .video-actions a, .video-actions button { display: inline-block; margin-right: 10px; padding: 8px 15px; background: #28a745; color: white; text-decoration: none; border-radius: 5px; font-size: 14px; border: none; cursor: pointer; }
+        .video-actions a:hover, .video-actions button:hover { background: #218838; }
+        .video-actions button { background: #007bff; }
+        .video-actions button:hover { background: #0056b3; }
+        .video-actions .open-tab { background: #6c757d; }
+        .video-actions .open-tab:hover { background: #5a6268; }
+        .video-player { display: none; margin-top: 15px; }
+        .video-player.active { display: block; }
+        .video-player video { width: 100%; max-width: 800px; border-radius: 5px; }
+        .video-warning { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 10px; border-radius: 5px; margin-bottom: 10px; font-size: 14px; }
+        .video-warning strong { display: block; margin-bottom: 5px; }
+        .video-warning a { color: #0056b3; text-decoration: underline; font-weight: bold; }
+        .message { padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .status { background: #e7f3ff; border: 1px solid #b3d9ff; padding: 15px; border-radius: 5px; margin-bottom: 20px; max-height: 300px; overflow-y: auto; }
+        .status-line { padding: 5px 0; font-size: 14px; color: #333; }
+        .status-line:last-child { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📹 Video Parser</h1>
+        
+        <div id="message"></div>
+        
+        <div class="status" id="status" style="display: none;">
+            <div id="statusContent"></div>
+        </div>
+        
+        <div class="form-group">
+            <label>URL канала YouTube:</label>
+            <input type="text" id="channelUrl" placeholder="https://www.youtube.com/@username">
+        </div>
+        
+        <div class="form-group">
+            <label>Количество видео:</label>
+            <input type="number" id="maxVideos" value="10" min="1" max="50">
+        </div>
+        
+        <button onclick="parseChannel()">Парсить канал</button>
+        <button onclick="loadVideos()" style="background: #6c757d; margin-left: 10px;">Обновить список</button>
+        
+        <div class="videos" id="videos"></div>
+    </div>
+
+    <script>
+        let ws;
+        let wsReconnectTimeout;
+        
+        function connectWebSocket() {
+            // Очистить предыдущий таймаут
+            if (wsReconnectTimeout) {
+                clearTimeout(wsReconnectTimeout);
+                wsReconnectTimeout = null;
+            }
+            
+            // Закрыть существующее подключение если есть
+            if (ws && ws.readyState !== WebSocket.CLOSED) {
+                ws.close();
+            }
+            
+            try {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws`;
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function() {
+                    // WebSocket подключен
+                };
+                
+                ws.onmessage = function(event) {
+                    const statusDiv = document.getElementById('status');
+                    const statusContent = document.getElementById('statusContent');
+                    
+                    statusDiv.style.display = 'block';
+                    
+                    const line = document.createElement('div');
+                    line.className = 'status-line';
+                    line.textContent = `[${new Date().toLocaleTimeString()}] ${event.data}`;
+                    statusContent.appendChild(line);
+                    
+                    statusDiv.scrollTop = statusDiv.scrollHeight;
+                    
+                    if (event.data.includes('✓') || event.data.includes('✗')) {
+                        setTimeout(loadVideos, 1000);
+                    }
+                };
+                
+                ws.onerror = function(error) {
+                    // Ошибка WebSocket
+                };
+                
+                ws.onclose = function() {
+                    // WebSocket закрыт, переподключение через 3 секунды
+                    wsReconnectTimeout = setTimeout(connectWebSocket, 3000);
+                };
+            } catch (error) {
+                // Ошибка создания WebSocket
+                wsReconnectTimeout = setTimeout(connectWebSocket, 3000);
+            }
+        }
+        
+        connectWebSocket();
+        
+        async function parseChannel() {
+            const channelUrl = document.getElementById('channelUrl').value;
+            const maxVideos = parseInt(document.getElementById('maxVideos').value);
+            
+            document.getElementById('statusContent').innerHTML = '';
+            document.getElementById('status').style.display = 'block';
+            
+            showMessage('Начинаем парсинг...', 'success');
+            
+            try {
+                const response = await fetch('/parse-channel', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ channel_url: channelUrl, max_videos: maxVideos })
+                });
+                
+                const data = await response.json();
+                showMessage(data.message, 'success');
+            } catch (error) {
+                showMessage('Ошибка: ' + error.message, 'error');
+            }
+        }
+        
+        async function loadVideos() {
+            try {
+                const response = await fetch('/videos');
+                const videos = await response.json();
+                
+                const container = document.getElementById('videos');
+                container.innerHTML = '<h2>Скачанные видео (' + videos.length + ')</h2>';
+                
+                videos.forEach(video => {
+                    const videoId = video.video_id;
+                    container.innerHTML += `
+                        <div class="video-item" id="video-${videoId}">
+                            <div class="video-header">
+                                <img src="/thumbnail/${videoId}" alt="${video.title}" onclick="togglePlayer('${videoId}')">
+                                <div class="video-info">
+                                    <div class="video-title">${video.title}</div>
+                                    <div class="video-actions">
+                                        <button onclick="togglePlayer('${videoId}')">Смотреть</button>
+                                    
+                                        <a href="/video/${videoId}" download>Скачать видео</a>
+                                        <a href="/thumbnail/${videoId}" download>Скачать превью</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="video-player" id="player-${videoId}">
+                                <div class="video-warning">
+                                    <strong>⚠️ Внимание!</strong>
+                                    Файл может долго загружаться. Возможны проблемы с перемоткой при онлайн-просмотре. Рекомендуем <a href="/video/${videoId}" target="_blank">открыть в новой вкладке</a>, <a href="vlc://${window.location.protocol}//${window.location.host}/video/${videoId}">открыть в VLC</a> или скачать видео для комфортного просмотра.
+                                </div>
+                                <video controls preload="metadata">
+                                    <source src="/video/${videoId}" type="video/webm">
+                                    Ваш браузер не поддерживает видео.
+                                </video>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                showMessage('Ошибка загрузки видео: ' + error.message, 'error');
+            }
+        }
+        
+        function togglePlayer(videoId) {
+            const player = document.getElementById('player-' + videoId);
+            const video = player.querySelector('video');
+            
+            if (player.classList.contains('active')) {
+                player.classList.remove('active');
+                video.pause();
+            } else {
+                // Закрыть все другие плееры
+                document.querySelectorAll('.video-player.active').forEach(p => {
+                    p.classList.remove('active');
+                    p.querySelector('video').pause();
+                });
+                
+                player.classList.add('active');
+                video.load();
+            }
+        }
+        
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.innerHTML = `<div class="message ${type}">${text}</div>`;
+            setTimeout(() => msg.innerHTML = '', 5000);
+        }
+        
+        loadVideos();
+    </script>
+</body>
+</html>
