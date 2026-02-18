@@ -39,9 +39,16 @@
         .status { background: #e7f3ff; border: 1px solid #b3d9ff; padding: 15px; border-radius: 5px; margin-bottom: 20px; max-height: 300px; overflow-y: auto; }
         .status-line { padding: 5px 0; font-size: 14px; color: #333; }
         .status-line:last-child { font-weight: bold; }
+        .warning-banner { position: fixed; top: 0; right: 0; left: 0; background: #ff9800; color: white; text-align: center; padding: 10px 20px; font-size: 14px; z-index: 9999; }
+        .warning-banner a { color: white; font-weight: bold; text-decoration: underline; }
+        .warning-banner a:hover { text-decoration: none; }
+        body { padding-top: 50px; }
     </style>
 </head>
 <body>
+    <div class="warning-banner">
+        ⚠️ НЕКОТОРЫЕ ВИДЕО МОГУТ НЕ ГРУЗИТЬСЯ — ЭТО НЕ ПРОБЛЕМА НАС, ЭТО ПРОБЛЕМА САМОГО ЮТУБА ИЛИ <a href="https://github.com/yt-dlp/yt-dlp" target="_blank">YT-DLP</a>
+    </div>
     <div class="container">
         <h1>📹 Video Parser</h1>
         
@@ -176,7 +183,7 @@
                             <div class="video-player" id="player-${videoId}">
                                 <div class="video-warning">
                                     <strong>⚠️ Внимание!</strong>
-                                    Файл может долго загружаться. Возможны проблемы с перемоткой при онлайн-просмотре. Рекомендуем <a href="/video/${videoId}" target="_blank">открыть в новой вкладке</a>, <a href="vlc://${window.location.protocol}//${window.location.host}/video/${videoId}">открыть в VLC</a> или скачать видео для комфортного просмотра.
+                                    Файл может долго загружаться. Возможны проблемы с перемоткой при онлайн-просмотре. Рекомендуем <a href="/video/${videoId}" target="_blank">открыть в новой вкладке</a>,или скачать видео для комфортного просмотра.
                                 </div>
                                 <video controls preload="metadata">
                                     <source src="/video/${videoId}" type="video/webm">
@@ -194,7 +201,7 @@
         function togglePlayer(videoId) {
             const player = document.getElementById('player-' + videoId);
             const video = player.querySelector('video');
-            
+
             if (player.classList.contains('active')) {
                 player.classList.remove('active');
                 video.pause();
@@ -204,7 +211,7 @@
                     p.classList.remove('active');
                     p.querySelector('video').pause();
                 });
-                
+
                 player.classList.add('active');
                 video.load();
             }

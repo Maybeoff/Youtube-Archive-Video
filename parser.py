@@ -36,6 +36,7 @@ async def download_video(video_url: str):
         'yt-dlp',
         '--dump-json',
         '--no-warnings',
+        '--js-runtimes', 'node',
         video_url
     ]
     
@@ -64,7 +65,7 @@ async def download_video(video_url: str):
         '--format', format_str,
         '-o', str(DOWNLOAD_DIR / '%(id)s.%(ext)s'),
         '--write-thumbnail',
-        '--remux-video', 'webm',  # Перепаковать в webm с аудио
+        '--js-runtimes', 'node',
         video_url
     ]
     
